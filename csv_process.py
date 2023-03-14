@@ -49,3 +49,22 @@ def show_tweets_on(tweets, date):
         if tweet_date == date:
             specific_tweets.append(tweet)
     return specific_tweets
+
+
+def write_to_csv(data, filename):
+    """
+    Writes the new data to a csv in the processed-data folder.
+
+    Args:
+        data (list): a list of data to write to a csv.
+        filename (str): the name of the csv to store the data in.
+
+    Returns:
+        None.
+    """
+
+    with open(f"processed-data/{filename}.csv", mode="w", newline="") as csv_file:
+        csv_writer = csv.writer(csv_file)
+
+        for row in data:
+            csv_writer.writerow(row)
