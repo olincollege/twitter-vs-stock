@@ -1,6 +1,8 @@
-from basescrape import *
+from twitscrape import *
+from csv_process import *
 
 NAME = "elonmusk"
-
-tweets_df = get_tweets_in_month(NAME, "Feb")
-# tested to see attributes generated in "tweet" object.
+YEAR = 2019
+DATE = "2022-06-10"
+tweets = read_to_variable(NAME, YEAR)
+specific_tweets = show_tweets_on(tweets, DATE)
