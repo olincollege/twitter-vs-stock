@@ -17,9 +17,14 @@ def read_to_variable(name, year):
     Returns:
         rows (list): list of all tweets with data in the given csv.
     """
+    # read the raw data in based on name and year
     with open(f"raw-data/{name}-after-{year}.csv", "r") as f:
+
+        # sets reader object
         reader = csv.reader(f)
+        # generates empty row list
         rows = []
+        # appends every row in the csv to new list
         for row in reader:
             rows.append(row)
 
@@ -43,9 +48,13 @@ def show_tweets_on(tweets, date):
     specific_tweets = []
     # loop through tweets in list
     for tweet in tweets[1:]:
+        # pulls the string with the date values
         temp_date = tweet[0]
+        # converts the string to a date time object
         dt_obj = datetime.strptime(temp_date, "%Y-%m-%d %H:%M:%S%z")
+        # pulls the date and converts it to standard format
         tweet_date = dt_obj.strftime("%m-%d-%Y")
+        # appends the tweet data if it matches the target date
         if tweet_date == date:
             specific_tweets.append(tweet)
     return specific_tweets
@@ -62,9 +71,9 @@ def write_to_csv(data, filename):
     Returns:
         None.
     """
-
+    # opens a new csv with the specified filename
     with open(f"processed-data/{filename}.csv", mode="w", newline="") as csv_file:
         csv_writer = csv.writer(csv_file)
-
+        # iterate through the list and append data to csv on separate rows
         for row in data:
             csv_writer.writerow(row)
