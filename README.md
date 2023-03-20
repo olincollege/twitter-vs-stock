@@ -1,2 +1,2 @@
 # twitter-vs-stock
-Exploring correlation between tweets of ceo's and their stock value.
+Exploring the correlation between tweets of CEO's and their stock value.

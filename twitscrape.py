@@ -1,5 +1,5 @@
 """
-Notebook testing snscrape functionality
+Functions testing snscrape functionality
 """
 
 # import twitter scraping library
@@ -211,3 +211,83 @@ def get_tweets_before(twitter_handle, before_hour):
     # add dataframe to csv
     tweets_df.to_csv(f"month-data/{twitter_handle}.csv", index=False)
     return tweets_df
+
+
+def get_all_tweets(twitter_handle):
+    """
+    Scrapes through ALL tweets.
+
+    Args:
+        twitter_handle (str) : Handle of the account to grab tweets from.
+
+    Returns:
+        tweets_df (pd.dataframe) : Pandas dataframe containing all tweets from
+        specified user.
+    """
+
+    tweets_list = []
+
+    # scrape specified user
+    scraper = sntwitter.TwitterUserScraper(twitter_handle).get_items()
+    # loop through items in completed scrape
+    for i, tweet in enumerate(scraper):
+        # get total number of tweets
+        user_attributes = tweet.user
+        total_tweets = user_attributes.statusesCount
+        # break out of loops if loop index passes users total tweet count
+        if i > total_tweets:
+            break
+        # skip to next index if hour is after cutoff hour
+        # data being stored
+        data = [tweet.date, tweet.rawContent, tweet.viewCount]
+        # append data from each tweet if in specified month
+        tweets_list.append(data)
+    # turn list into pandas dataframe
+    tweets_df = pd.DataFrame(
+        tweets_list, columns=["date and time", "content", "view count"]
+    )
+    # add dataframe to csv
+    tweets_df.to_csv(f"month-data/{twitter_handle}.csv", index=False)
+    return tweets_df
+
+def get_tweets_after(twitter_handle, year):
+    """
+    Scrapes through ALL tweets.
+
+    Args:
+        twitter_handle (str) : Handle of the account to grab tweets from.
+        year (int) : Year of which to print all tweets after.
+
+    Returns:
+        tweets_df (pd.dataframe) : Pandas dataframe containing data about tweets
+        tweeted after the given year.
+    """
+
+    tweets_list = []
+
+    # scrape specified user
+    scraper = sntwitter.TwitterUserScraper(twitter_handle).get_items()
+    # loop through items in completed scrape
+    for i, tweet in enumerate(scraper):
+        # splits the date object into date and time elements
+        date = tweet.date.strftime("%b-%d-%Y")
+        time = tweet.date.strftime("%H:%m")
+        current_year = tweet.date.strftime("%Y")
+        # get total number of tweets
+        user_attributes = tweet.user
+        total_tweets = user_attributes.statusesCount
+        # break out of loop when target year is reached
+        if current_year == year:
+            break
+        # data being stored
+        data = [tweet.date, tweet.rawContent, tweet.viewCount]
+        # append data from each tweet if in specified month
+        tweets_list.append(data)
+    # turn list into pandas dataframe
+    tweets_df = pd.DataFrame(
+        tweets_list, columns=["date and time", "content", "view count"]
+    )
+    # add dataframe to csv
+    tweets_df.to_csv(f"raw-data/{twitter_handle}-after-{year}.csv", index=False)
+    return tweets_df
+
