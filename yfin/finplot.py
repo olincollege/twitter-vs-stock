@@ -26,7 +26,7 @@ def make_stock_dict(ticker_symbols):
     return ticker_dict
 
 
-def get_close_stocks(ticker, start_date, end_date):
+def get_close_stocks(ticker, start_date, end_date, normalize=False):
     """
     Get's a list of stock close values
      during a specific period of time.
@@ -39,6 +39,8 @@ def get_close_stocks(ticker, start_date, end_date):
         stock prices.
         end_date: A string in the format of YYYY-MM-DD which
         represents the end date to get the stock prices
+        normalize: A boolean optional parameter which tells
+        the function that the stock data should be normalized.
 
     Return:
         Return a dictionary with the stock symbols as keys
@@ -54,7 +56,11 @@ def get_close_stocks(ticker, start_date, end_date):
         ).Close
 
         # We normalize the stock's close_value so that we can plot everything
-        ticker[symbol] = close_value / close_value.iloc[0] * 100
+        if normalize:
+
+            ticker[symbol] = close_value / close_value.iloc[0] * 100
+        else:
+            ticker[symbol] = close_value
 
     return ticker
 
@@ -81,3 +87,44 @@ def plot_stocks(ticker):
     plt.ylabel("Stock price at Closing")
     plt.legend()
     plt.show()
+
+
+def export_csv(ticker):
+    """Autogenerates a csv file for each stock we track
+
+    Args:
+        ticker: a dictionary with ticker symbols as the keys and a
+        Pandas Series object which holds the dates & closing prices
+        as the values
+
+    """
+    for key, value in ticker.items():
+        file_name = "".join([key, ".csv"])
+
+        # Creates a CSV file for it
+        value.to_csv(file_name, index=True)
+
+
+def delta_values(ticker, date_span=1):
+    """Finds the rate of change of
+    stock prices day to day
+
+    Args:
+        ticker: a dictionary with ticker symbols as the keys and a
+        Pandas Series object which holds the dates & closing prices
+        as the values. The dictionary must have only 1 index.
+        date_span: An integer which determines the spaces between the days.
+        For example, date_span of 1 would mean that there is 1 day between each
+        stock close price recorded. By default it is 1 one day.
+
+    Returns:
+        a Pandas Series of dates and rate of stock price changes"""
+
+    delta = {}
+
+    list_ticker = [(key, value) for key, value in ticker.items()]
+
+    for i in range(1, len(list_ticker)):
+        delta[list_ticker[i][0]] = list_ticker[i][1] - list_ticker[i - 1][1]
+
+    return pd.Series(delta)
