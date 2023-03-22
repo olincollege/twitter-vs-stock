@@ -290,4 +290,3 @@ def get_tweets_after(twitter_handle, year):
     # add dataframe to csv
     tweets_df.to_csv(f"raw-data/{twitter_handle}-after-{year}.csv", index=False)
     return tweets_df
-
