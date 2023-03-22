@@ -3,6 +3,7 @@ Functions for manipulating scraped tweets.
 """
 from datetime import timedelta, datetime
 import csv
+import pandas as pd
 
 
 def read_to_variable(name, year=2019):
@@ -125,11 +126,19 @@ def write_to_csv(data, filename):
     Returns:
         None.
     """
-    # opens a new csv with the specified filename
-    with open(
-        f"processed-data/{filename}.csv", "w", encoding="utf-8", newline=""
-    ) as csv_file:
-        csv_writer = csv.writer(csv_file)
-        # iterate through the list and append data to csv on separate rows
-        for row in data:
-            csv_writer.writerow(row)
+
+    # checks if there is data for view count and adjusts column names of data
+    # frame.
+
+    tweet = data[0]
+
+    val = tweet[2]
+
+    tweets_df = pd.DataFrame(data, columns=["date and time", "content", "view count"])
+
+    if val == "":
+        tweets_df = tweets_df.loc[:, tweets_df.columns != "view count"]
+
+    # add dataframe to csv
+    tweets_df.to_csv(f"processed-data/{filename}.csv", index=False)
+    return tweets_df
