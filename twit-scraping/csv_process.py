@@ -1,12 +1,11 @@
 """
 Functions for manipulating scraped tweets.
 """
-import pandas as pd
+from datetime import timedelta, datetime
 import csv
-from datetime import datetime
 
 
-def read_to_variable(name, year):
+def read_to_variable(name, year=2019):
     """
     Writes all the data in a csv to a variable.
 
@@ -18,7 +17,7 @@ def read_to_variable(name, year):
         rows (list): list of all tweets with data in the given csv.
     """
     # read the raw data in based on name and year
-    with open(f"raw-data/{name}-after-{year}.csv", "r") as f:
+    with open(f"raw-data/{name}-after-{year}.csv", "r", encoding="utf-8") as f:
 
         # sets reader object
         reader = csv.reader(f)
@@ -33,7 +32,7 @@ def read_to_variable(name, year):
 
 def show_tweets_on(tweets, date):
     """
-    Takes a list of tweet and returns tweets on a specific day.
+    Takes a list of tweets and returns tweets on a specific day.
 
     Args:
         tweets (list): list of tweets to sweep through.
@@ -60,6 +59,61 @@ def show_tweets_on(tweets, date):
     return specific_tweets
 
 
+def get_tweets_around(name, mid_date, search_range=15):
+    """
+    Finds all the tweets within a specific number of days of an initial date.
+
+    Args:
+        name (str): name of profile to grab tweets from.
+        mid_date (str): midpoint date to center search around.
+        range (int): number of days before and after to search through.
+
+    Returns:
+        specific tweets (list): List of all tweets within specified days of
+        specified date.
+
+    Note:
+        Date must be in format mm-dd-yyyy.
+        The default range is set to 15 days.
+        This function omits replies.
+    """
+
+    # define empty tweets list
+    specific_tweets = []
+
+    # convert input date to datetime object
+    mid_date = datetime.strptime(mid_date, "%m-%d-%Y")
+
+    # grab tweets based on name input:
+    raw_list = read_to_variable(name)
+
+    # create timedelta with input range
+    time_delta = timedelta(days=search_range)
+
+    # loop through tweets in list
+    for tweet in raw_list[1:]:
+
+        # pulls the string with the date values
+        temp_date = tweet[0]
+
+        # pulls tweet content to allow reply omission.
+        content = tweet[1]
+
+        # converts the string to a date time object
+        tweet_date = datetime.strptime(temp_date, "%Y-%m-%d %H:%M:%S%z")
+
+        # remove the timezone offset
+        tweet_date = tweet_date.replace(tzinfo=None)
+
+        # appends the tweet data if within date range and not a reply.
+        if (mid_date - time_delta) < tweet_date < (mid_date + time_delta) and content[
+            0
+        ] not in "@":
+            specific_tweets.append(tweet)
+
+    return specific_tweets
+
+
 def write_to_csv(data, filename):
     """
     Writes the new data to a csv in the processed-data folder.
@@ -72,7 +126,9 @@ def write_to_csv(data, filename):
         None.
     """
     # opens a new csv with the specified filename
-    with open(f"processed-data/{filename}.csv", mode="w", newline="") as csv_file:
+    with open(
+        f"processed-data/{filename}.csv", "w", encoding="utf-8", newline=""
+    ) as csv_file:
         csv_writer = csv.writer(csv_file)
         # iterate through the list and append data to csv on separate rows
         for row in data:
