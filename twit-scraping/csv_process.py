@@ -17,10 +17,10 @@ def read_to_variable(name, year=2019):
         rows (list): list of all tweets with data in the given csv.
     """
     # read the raw data in based on name and year
-    with open(f"raw-data/{name}-after-{year}.csv", "r", encoding="utf-8") as f:
+    with open(f"raw-data/{name}-after-{year}.csv", "r", encoding="utf-8") as file:
 
         # sets reader object
-        reader = csv.reader(f)
+        reader = csv.reader(file)
         # generates empty row list
         rows = []
         # appends every row in the csv to new list

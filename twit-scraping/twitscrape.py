@@ -3,7 +3,6 @@ Functions testing snscrape functionality
 """
 
 # import twitter scraping library
-from datetime import datetime
 import pandas as pd
 import snscrape.modules.twitter as sntwitter
 
@@ -24,9 +23,10 @@ def get_tweet(twitter_handle):
     scraper = sntwitter.TwitterUserScraper(twitter_handle).get_items()
 
     for tweet in scraper:
+        content = tweet.rawContent
         break
 
-    return tweet.rawContent
+    return content
 
 
 def get_tweet_data(twitter_handle):
@@ -140,7 +140,6 @@ def get_tweets_in_month(twitter_handle, targ_month):
     for i, tweet in enumerate(scraper):
         # splits the date object into date and time elements
         date = tweet.date.strftime("%b-%d-%Y")
-        time = tweet.date.strftime("%H:%m")
         month = date[0:3]
         # get total number of tweets
         user_attributes = tweet.user
@@ -188,7 +187,6 @@ def get_tweets_before(twitter_handle, before_hour):
     # loop through items in completed scrape
     for i, tweet in enumerate(scraper):
         # splits the date object into date and time elements
-        date = tweet.date.strftime("%b-%d-%Y")
         time = tweet.date.strftime("%H:%m")
         hour = time[0:2]
         # get total number of tweets
@@ -250,6 +248,7 @@ def get_all_tweets(twitter_handle):
     tweets_df.to_csv(f"month-data/{twitter_handle}.csv", index=False)
     return tweets_df
 
+
 def get_tweets_after(twitter_handle, year):
     """
     Scrapes through ALL tweets.
@@ -268,14 +267,9 @@ def get_tweets_after(twitter_handle, year):
     # scrape specified user
     scraper = sntwitter.TwitterUserScraper(twitter_handle).get_items()
     # loop through items in completed scrape
-    for i, tweet in enumerate(scraper):
-        # splits the date object into date and time elements
-        date = tweet.date.strftime("%b-%d-%Y")
-        time = tweet.date.strftime("%H:%m")
+    for tweet in scraper:
+        # get current year
         current_year = tweet.date.strftime("%Y")
-        # get total number of tweets
-        user_attributes = tweet.user
-        total_tweets = user_attributes.statusesCount
         # break out of loop when target year is reached
         if current_year == year:
             break
