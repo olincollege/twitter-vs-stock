@@ -57,7 +57,7 @@ class StockPlot:
         # Creates a CSV file for it
         self._stock_data.to_csv(file_name, index=True)
 
-    def get_variance_data(self, date_span=1):
+    def get_variance_data(self, data_type="raw"):
         """Calculates the percent variance of the closing prices between
         dates
 
@@ -67,7 +67,10 @@ class StockPlot:
         """
         deltas = [0]
 
-        prices_array = self._stock_data
+        if data_type == "raw":
+            prices_array = self._stock_data
+        if data_type == "normalized":
+            prices_array = self.get_normalized_data()
 
         for i in range(1, len(prices_array)):
             delta_price = prices_array[i] - prices_array[i - 1]
@@ -86,17 +89,4 @@ class StockPlot:
         """
         prices_array = self._stock_data.values
         normalized_prices = preprocessing.normalize([prices_array])[0]
-        print(normalized_prices[0])
-        print(len(self._stock_data.index))
         return pd.Series(normalized_prices, self._stock_data.index)
-
-    def get_norm_data(self, date_span=1):
-        """WIP"""
-        deltas = []
-
-        prices_array = self._stock_data
-
-        for i in range(0, len(prices_array)):
-            deltas.append((prices_array[i] / prices_array[0]))
-
-        return pd.Series(deltas, self._stock_data.index)
