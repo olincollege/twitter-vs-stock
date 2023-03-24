@@ -18,8 +18,9 @@ def read_to_variable(name, year=2019):
         rows (list): list of all tweets with data in the given csv.
     """
     # read the raw data in based on name and year
-    with open(f"raw-data/{name}-after-{year}.csv", "r", encoding="utf-8") as file:
-
+    with open(
+        f"raw-data/{name}-after-{year}.csv", "r", encoding="utf-8"
+    ) as file:
         # sets reader object
         reader = csv.reader(file)
         # generates empty row list
@@ -93,7 +94,6 @@ def get_tweets_around(name, mid_date, search_range=15):
 
     # loop through tweets in list
     for tweet in raw_list[1:]:
-
         # pulls the string with the date values
         temp_date = tweet[0]
 
@@ -107,9 +107,9 @@ def get_tweets_around(name, mid_date, search_range=15):
         tweet_date = tweet_date.replace(tzinfo=None)
 
         # appends the tweet data if within date range and not a reply.
-        if (mid_date - time_delta) < tweet_date < (mid_date + time_delta) and content[
-            0
-        ] not in "@":
+        if (mid_date - time_delta) < tweet_date < (
+            mid_date + time_delta
+        ) and content[0] not in "@":
             specific_tweets.append(tweet)
 
     return specific_tweets
@@ -134,7 +134,9 @@ def write_to_csv(data, filename):
 
     val = tweet[2]
 
-    tweets_df = pd.DataFrame(data, columns=["date and time", "content", "view count"])
+    tweets_df = pd.DataFrame(
+        data, columns=["date and time", "content", "view count"]
+    )
 
     if val == "":
         tweets_df = tweets_df.loc[:, tweets_df.columns != "view count"]
