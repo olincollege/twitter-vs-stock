@@ -25,7 +25,7 @@ def list_merger(stock_list, func="get_stock_data"):
     else:
         data = [stock.get_stock_data() for stock in stock_list]
 
-    # Merging the lists into 1 Pandas Datafram
+    # Merging the lists into 1 Pandas Dataframe
     name_list = [stock.get_ticker() for stock in stock_list]
     merged_frame = pd.concat(data, axis=1)
     named_frame = merged_frame.set_axis(name_list, axis=1)
@@ -43,7 +43,7 @@ def filterer(stock_list):
     Returns:
         a Pandas Series of dates and rate of stock price changes"""
 
-    # Merging the lists into 1 Pandas Datafram
+    # Merging the lists into 1 Pandas Dataframe
     variance_list = [stock.get_variance_data() for stock in stock_list]
     name_list = [stock.get_ticker() for stock in stock_list]
     merged_frame = pd.concat(variance_list, axis=1)
