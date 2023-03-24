@@ -1,13 +1,13 @@
 """Helper functions for getting and plotting stocks
 using the Yfinance library"""
 
+# from statistics import variance
 import pandas as pd
-import matplotlib.pyplot as plt
-import yfinance as yahooFinance
-import StockPlot
-from statistics import variance
 
-from sklearn import preprocessing
+# import matplotlib.pyplot as plt
+# import yfinance as yahooFinance
+# from sklearn import preprocessing
+# import StockPlot
 
 
 def list_merger(stock_list, func="get_stock_data"):
