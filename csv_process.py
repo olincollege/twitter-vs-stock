@@ -49,6 +49,8 @@ def show_tweets_on(tweets, date):
     specific_tweets = []
     # loop through tweets in list
     for tweet in tweets[1:]:
+        # gets content of tweet to allow for reply omission
+        content = tweet[1]
         # pulls the string with the date values
         temp_date = tweet[0]
         # converts the string to a date time object
@@ -56,7 +58,7 @@ def show_tweets_on(tweets, date):
         # pulls the date and converts it to standard format
         tweet_date = dt_obj.strftime("%m-%d-%Y")
         # appends the tweet data if it matches the target date
-        if tweet_date == date:
+        if tweet_date == date and content[0] not in "@":
             specific_tweets.append(tweet)
     return specific_tweets
 
@@ -84,7 +86,7 @@ def get_tweets_around(name, mid_date, search_range=15):
     specific_tweets = []
 
     # convert input date to datetime object
-    mid_date = datetime.strptime(mid_date, "%m-%d-%Y")
+    mid_date = datetime.strptime(mid_date, "%Y-%m-%d")
 
     # grab tweets based on name input:
     raw_list = read_to_variable(name)

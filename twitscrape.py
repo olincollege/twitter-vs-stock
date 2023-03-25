@@ -105,7 +105,7 @@ def get_thou_tweets(twitter_handle):
         time = dates.strftime("%H:%m")
         # data being pulled
         data = [date, time, tweet.rawContent, tweet.viewCount]
-        # append data from each tweet if in feb.
+        # append data from each tweet.
         tweets_list.append(data)
     # turn data into dataframe (pandas)
     tweets_df = pd.DataFrame(
@@ -159,7 +159,7 @@ def get_tweets_in_month(twitter_handle, targ_month):
         tweets_list, columns=["date and time", "content", "view count"]
     )
     # add dataframe to csv
-    tweets_df.to_csv(f"month-data/{twitter_handle}.csv", index=False)
+    tweets_df.to_csv(f"raw-data/{twitter_handle}.csv", index=False)
     return tweets_df
 
 
@@ -207,7 +207,7 @@ def get_tweets_before(twitter_handle, before_hour):
         tweets_list, columns=["date and time", "content", "view count"]
     )
     # add dataframe to csv
-    tweets_df.to_csv(f"month-data/{twitter_handle}.csv", index=False)
+    tweets_df.to_csv(f"raw-data/{twitter_handle}.csv", index=False)
     return tweets_df
 
 
@@ -245,13 +245,13 @@ def get_all_tweets(twitter_handle):
         tweets_list, columns=["date and time", "content", "view count"]
     )
     # add dataframe to csv
-    tweets_df.to_csv(f"month-data/{twitter_handle}.csv", index=False)
+    tweets_df.to_csv(f"raw-data/{twitter_handle}-all-tweets.csv", index=False)
     return tweets_df
 
 
 def get_tweets_after(twitter_handle, year):
     """
-    Scrapes through ALL tweets.
+    Scrapes through tweets after a specific year.
 
     Args:
         twitter_handle (str) : Handle of the account to grab tweets from.
@@ -283,4 +283,41 @@ def get_tweets_after(twitter_handle, year):
     )
     # add dataframe to csv
     tweets_df.to_csv(f"raw-data/{twitter_handle}-after-{year}.csv", index=False)
+    return tweets_df
+
+
+def get_tweets_on_year(twitter_handle, year):
+    """
+    Scrapes through tweets on a specific year
+
+    Args:
+        twitter_handle (str) : Handle of the account to grab tweets from.
+        year (int) : Year of which to print tweets of
+
+    Returns:
+        tweets_df (pd.dataframe) : Pandas dataframe containing data about tweets
+        tweeted in the given year
+    """
+
+    tweets_list = []
+
+    # scrape specified user
+    scraper = sntwitter.TwitterUserScraper(twitter_handle).get_items()
+    # loop through items in completed scrape
+    for tweet in scraper:
+        # get current year
+        current_year = tweet.date.strftime("%Y")
+        # break out of loop when target year is reached
+        if current_year != year:
+            continue
+        # data being stored
+        data = [tweet.date, tweet.rawContent, tweet.likeCount]
+        # append data from each tweet if in specified month
+        tweets_list.append(data)
+    # turn list into pandas dataframe
+    tweets_df = pd.DataFrame(
+        tweets_list, columns=["date and time", "content", "like count"]
+    )
+    # add dataframe to csv
+    tweets_df.to_csv(f"raw-data/{twitter_handle}-in-{year}.csv", index=False)
     return tweets_df
