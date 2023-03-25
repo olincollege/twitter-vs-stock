@@ -1,6 +1,5 @@
 """A class that organizes all the data nicely"""
 import pandas as pd
-import matplotlib.pyplot as plt
 import yfinance as yahooFinance
 from sklearn import preprocessing
 
