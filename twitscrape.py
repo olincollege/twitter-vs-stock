@@ -31,7 +31,7 @@ def get_tweet(twitter_handle):
 
 def get_tweet_data(twitter_handle):
     """
-    Gets the date, time, content, and interaction data for a tweet.
+    Gets the date, time, content, and likes + retweets for a tweet.
 
     Args:
         twitter_handle (str) : Handle of the account to grab tweets from.
@@ -43,10 +43,13 @@ def get_tweet_data(twitter_handle):
     tweet_data = []
 
     for tweet in scraper:
-        # create a variable for total interactions (likes + retweets)
-        interactions = tweet.likeCount + tweet.retweetCount
         # data being pulled
-        data = [tweet.date, tweet.rawContent, interactions]
+        data = [
+            tweet.date,
+            tweet.rawContent,
+            tweet.likeCount,
+            tweet.retweetCount,
+        ]
         # append data from each tweet.
         tweet_data.append(data)
         break
@@ -76,18 +79,17 @@ def get_tweet_date(twitter_handle):
 
 def get_thou_tweets(twitter_handle):
     """
-    Gets the last 10000 tweets of a user.
+    Gets the last 1000 tweets of a user.
 
     Args:
         twitter_handle (str) : Handle of the account to grab tweets from.
 
     Returns:
         tweets_df (pd.dataframe) : Pandas dataframe containing data about past
-        10000 tweets.
+        1000 tweets.
 
     Note:
-    The dates and times are converted to strings for easier comparison, it may
-    be necersary to convert them back to datetime objects forplotting.
+    The dates and times are converted to strings for easier comparison.
     """
 
     tweets_list = []
@@ -97,39 +99,35 @@ def get_thou_tweets(twitter_handle):
 
     # loop through items in completed scrape
     for i, tweet in enumerate(scraper):
-        if i > 10000:
+        if i > 1000:
             break
         # splits the date object into date and time elements
         dates = tweet.date
-        date = dates.strftime("%b-%d-%Y")
-        time = dates.strftime("%H:%m")
         # data being pulled
-        data = [date, time, tweet.rawContent, tweet.viewCount]
+        data = [dates, tweet.rawContent, tweet.viewCount]
         # append data from each tweet.
         tweets_list.append(data)
     # turn data into dataframe (pandas)
     tweets_df = pd.DataFrame(
-        tweets_list, columns=["date", "time", "content", "view count"]
+        tweets_list, columns=["date and time", "content", "view count"]
     )
     # add dataframe to csv
-    tweets_df.to_csv(f"raw-data/{twitter_handle}.csv", index=False)
+    tweets_df.to_csv(f"raw-data/{twitter_handle}-1000.csv", index=False)
     return tweets_df
 
 
 def get_tweets_in_month(twitter_handle, targ_month):
     """
-    Scrapes through ALL tweets and returns tweets in specified month.
+    Scrapes through all tweets and returns tweets in specified month.
     Args:
         twitter_handle (str) : Handle of the account to grab tweets from.
-        month (str) : First three digits of intended month.
+        month (str) : First three characters of intended month.
 
     Returns:
         tweets_df (pd.dataframe) : Pandas dataframe containing data about tweets
         tweeted in given month.
     Note:
-    The dates and times are converted to strings for easier comparison, it may
-    be necersary to convert them back to datetime objects forplotting. Object
-    within object needs to be called on line 148.
+    The dates and times are converted to strings for easier comparison.
     """
 
     tweets_list = []
@@ -159,7 +157,7 @@ def get_tweets_in_month(twitter_handle, targ_month):
         tweets_list, columns=["date and time", "content", "view count"]
     )
     # add dataframe to csv
-    tweets_df.to_csv(f"raw-data/{twitter_handle}.csv", index=False)
+    tweets_df.to_csv(f"raw-data/{twitter_handle}-in-{targ_month}.csv", index=False)
     return tweets_df
 
 

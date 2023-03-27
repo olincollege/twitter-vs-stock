@@ -6,7 +6,7 @@ import csv
 import pandas as pd
 
 
-def read_to_variable(name, year=2019):
+def read_to_variable(name):
     """
     Writes all the data in a csv to a variable.
 
@@ -18,9 +18,7 @@ def read_to_variable(name, year=2019):
         rows (list): list of all tweets with data in the given csv.
     """
     # read the raw data in based on name and year
-    with open(
-        f"raw-data/{name}-after-{year}.csv", "r", encoding="utf-8"
-    ) as file:
+    with open(f"raw-data/{name}-all-tweets.csv", "r", encoding="utf-8") as file:
         # sets reader object
         reader = csv.reader(file)
         # generates empty row list
@@ -63,12 +61,12 @@ def show_tweets_on(tweets, date):
     return specific_tweets
 
 
-def get_tweets_around(name, mid_date, search_range=15):
+def get_tweets_around(tweets_list, mid_date, search_range=15):
     """
     Finds all the tweets within a specific number of days of an initial date.
 
     Args:
-        name (str): name of profile to grab tweets from.
+        tweets_list (list): list of tweets to search through.
         mid_date (str): midpoint date to center search around.
         range (int): number of days before and after to search through.
 
@@ -77,7 +75,7 @@ def get_tweets_around(name, mid_date, search_range=15):
         specified date.
 
     Note:
-        Date must be in format mm-dd-yyyy.
+        Date must be in format yyyy-mm-dd.
         The default range is set to 15 days.
         This function omits replies.
     """
@@ -89,13 +87,12 @@ def get_tweets_around(name, mid_date, search_range=15):
     mid_date = datetime.strptime(mid_date, "%Y-%m-%d")
 
     # grab tweets based on name input:
-    raw_list = read_to_variable(name)
 
     # create timedelta with input range
     time_delta = timedelta(days=search_range)
 
     # loop through tweets in list
-    for tweet in raw_list[1:]:
+    for tweet in tweets_list[1:]:
         # pulls the string with the date values
         temp_date = tweet[0]
 
