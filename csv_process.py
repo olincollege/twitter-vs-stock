@@ -126,19 +126,10 @@ def write_to_csv(data, filename):
         None.
     """
 
-    # checks if there is data for view count and adjusts column names of data
-    # frame.
-
-    tweet = data[0]
-
-    val = tweet[2]
-
     tweets_df = pd.DataFrame(
-        data, columns=["date and time", "content", "view count"]
+        data,
+        columns=["date and time", "content", "like count", "retweet count"],
     )
-
-    if val == "":
-        tweets_df = tweets_df.loc[:, tweets_df.columns != "view count"]
 
     # add dataframe to csv
     tweets_df.to_csv(f"processed-data/{filename}.csv", index=False)
