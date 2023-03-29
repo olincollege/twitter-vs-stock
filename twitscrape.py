@@ -2,11 +2,9 @@
 Functions testing snscrape functionality
 """
 
-# import twitter scraping library
+# import twitter scraping library and pandas
 import pandas as pd
 import snscrape.modules.twitter as sntwitter
-
-# import pandas for data processing later
 
 
 def get_tweet(twitter_handle):
@@ -157,7 +155,9 @@ def get_tweets_in_month(twitter_handle, targ_month):
         tweets_list, columns=["date and time", "content", "view count"]
     )
     # add dataframe to csv
-    tweets_df.to_csv(f"raw-data/{twitter_handle}-in-{targ_month}.csv", index=False)
+    tweets_df.to_csv(
+        f"raw-data/{twitter_handle}-in-{targ_month}.csv", index=False
+    )
     return tweets_df
 
 
@@ -235,12 +235,18 @@ def get_all_tweets(twitter_handle):
             break
         # skip to next index if hour is after cutoff hour
         # data being stored
-        data = [tweet.date, tweet.rawContent, tweet.viewCount]
+        data = [
+            tweet.date,
+            tweet.rawContent,
+            tweet.likeCount,
+            tweet.retweetCount,
+        ]
         # append data from each tweet if in specified month
         tweets_list.append(data)
     # turn list into pandas dataframe
     tweets_df = pd.DataFrame(
-        tweets_list, columns=["date and time", "content", "view count"]
+        tweets_list,
+        columns=["date and time", "content", "like count", "retweet count"],
     )
     # add dataframe to csv
     tweets_df.to_csv(f"raw-data/{twitter_handle}-all-tweets.csv", index=False)
