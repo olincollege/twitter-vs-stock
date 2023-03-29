@@ -67,7 +67,7 @@ class StockPlot:
         deltas = [0]
 
         if data_type == "raw":
-            prices_array = self._stock_data
+            prices_array = self.get_stock_data()
         if data_type == "normalized":
             prices_array = self.get_normalized_data()
 
@@ -89,3 +89,55 @@ class StockPlot:
         prices_array = self._stock_data.values
         normalized_prices = preprocessing.normalize([prices_array])[0]
         return pd.Series(normalized_prices, self._stock_data.index)
+
+    def get_range_date(self, interest_date, range_date=9, type="raw"):
+        """Gets a range of dates & stock prices from the overall
+        stock data in the class with a chosen date of interest
+        being in the middle
+
+        Args:
+            interest_date: String which represents the date of interest
+            in the format YYYY-MM-DD.
+            range_date: An integer number n which represents number of dates
+            n days before and n days after the interest_date
+            type: A Pandas Dataframe which identifies what "overall stock data"
+            we're looking at. This way we can change whether we're looking for
+            raw, normalized, or percent variance stock data.ff
+
+        Return:
+            A Pandas Dataframe which contains stock & date data with a
+            total length range_date *2 +1 with the date in the middle
+            being the interest_date.
+            If the interest_date is not in the self._stock_data range
+            then it will return None"""
+
+        df_types = {
+            "raw": self.get_stock_data(),
+            "normalized": self.get_normalized_data(),
+            "variance": self.get_variance_data(),
+        }
+
+        # Error Catches
+        try:
+            dataframe = df_types[type]
+        except KeyError:
+            print(
+                f"{type} is an invalid type argument value. You can choose from"
+                " raw, normalized, or variance. type arguement will default to"
+                " raw stock data"
+            )
+            dataframe = df_types("raw")
+
+        for i in range(len(dataframe) - 1):
+            if dataframe[i : i + 1].index == interest_date:
+                # Makes sure the parameters don't start in the
+                # negative index.
+                first_date = max(i - range_date, 0)
+                # Makes sure the parameters don't go over index. The +1
+                # compensates for the nature of string splicing
+                last_date = min(i + range_date + 1, len(dataframe))
+
+                return dataframe[first_date:last_date]
+
+        print("The date of interest is not in the range of stock data")
+        return dataframe
