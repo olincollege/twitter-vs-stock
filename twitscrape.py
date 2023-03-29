@@ -126,6 +126,7 @@ def get_tweets_in_month(twitter_handle, targ_month):
         tweeted in given month.
     Note:
     The dates and times are converted to strings for easier comparison.
+    Month input is assumed to be in format "Jan", "Feb", "Mar", etc.
     """
 
     tweets_list = []
@@ -163,7 +164,7 @@ def get_tweets_in_month(twitter_handle, targ_month):
 
 def get_tweets_before(twitter_handle, before_hour):
     """
-    Scrapes through ALL tweets and returns tweets tweeted within specific times.
+    Scrapes through tweets and returns tweets tweeted before a specific time.
 
     Args:
         twitter_handle (str) : Handle of the account to grab tweets from.
@@ -250,6 +251,7 @@ def get_all_tweets(twitter_handle):
     )
     # add dataframe to csv
     tweets_df.to_csv(f"raw-data/{twitter_handle}-all-tweets.csv", index=False)
+
     return tweets_df
 
 
@@ -287,6 +289,7 @@ def get_tweets_after(twitter_handle, year):
     )
     # add dataframe to csv
     tweets_df.to_csv(f"raw-data/{twitter_handle}-after-{year}.csv", index=False)
+
     return tweets_df
 
 
@@ -295,7 +298,7 @@ def get_tweets_on_year(twitter_handle, year):
     Scrapes through tweets on a specific year
 
     Args:
-        twitter_handle (str) : Handle of the account to grab tweets from.
+        twitter_handle (str) : Handle of the account to grab tweets from
         year (int) : Year of which to print tweets of
 
     Returns:
