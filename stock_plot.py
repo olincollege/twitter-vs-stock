@@ -1,4 +1,4 @@
-"""A class that organizes all the data nicely"""
+"""A class that organizes all the stock data """
 import pandas as pd
 import yfinance as yahooFinance
 from sklearn import preprocessing
@@ -44,17 +44,6 @@ class StockPlot:
         Return:
             A string that is the stock ticker symbol"""
         return self._ticker
-
-    def create_csv(self):
-        """Autogenerates a csv file for the stocks & dates.
-
-        Return:
-            Pandas Series object which holds the dates & closing prices
-        as the values"""
-
-        file_name = "".join([self._ticker, ".csv"])
-        # Creates a CSV file for it
-        self._stock_data.to_csv(file_name, index=True)
 
     def get_variance_data(self, data_type="raw"):
         """Calculates the percent variance of the closing prices between
