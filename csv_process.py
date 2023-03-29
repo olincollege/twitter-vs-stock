@@ -124,6 +124,11 @@ def write_to_csv(data, filename):
 
     Returns:
         None.
+
+    Notes:
+        assumes that there are values for like count and retweet count. This
+        is generally the case, but in some very rare cases (1/1000000) the
+        scraper can't access very old metadata from the site.
     """
 
     tweets_df = pd.DataFrame(
