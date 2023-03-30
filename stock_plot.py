@@ -46,7 +46,7 @@ class StockPlot:
         return self._ticker
 
     def get_variance_data(self, data_type="raw"):
-        """Calculates the percent variance of the closing prices between
+        """Calculates the percent variance (%) of the closing prices between
         dates
 
         Return:
@@ -63,7 +63,7 @@ class StockPlot:
         for i in range(1, len(prices_array)):
             delta_price = prices_array[i] - prices_array[i - 1]
             delta_price = delta_price / prices_array[i - 1]
-            deltas.append(delta_price)
+            deltas.append(delta_price * 100)
 
         return pd.Series(deltas[1:], self._stock_data.index[1:])
 
@@ -115,7 +115,7 @@ class StockPlot:
                 " raw, normalized, or variance. type arguement will default to"
                 " raw stock data"
             )
-            dataframe = df_types("raw")
+            dataframe = df_types["raw"]
 
         for i in range(len(dataframe) - 1):
             if dataframe[i : i + 1].index == interest_date:
