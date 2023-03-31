@@ -1,0 +1,898 @@
+---
+jupyter: python3
+---
+
+# <u>Exploring the effect that Elon Musk's tweets have on the stock price of Tesla</u>
+
+Authors: Trinity Lee and Sidney Taylor
+
+## Why does this matter?
+As social media has become easier to access over the years, sites like Twitter have become increasingly popular with executive figures, as they can voice their own opinions more casually, and interact with a fanbase that they have built through their companies. The most prolific and active example of this at the moment is Elon Musk. He has amassed a Twitter following of over 130 million users, at least 10% of which interact with each of his tweets. This naturally places him directly in the eye of the public and gives him an even bigger influence on society. Being the CEO and Co-Founder of Tesla, everything he says and does has the potential to create a ripple effect within the EV Giant. In particular, his activity on Twitter has been speculated to cause the stocks of his companies to be negatively affected, as investors lose confidence in Elon.
+
+Looking at whether his tweets specifically caused this dip is interesting, as it would provide decent evidence for a claim of Musk intentionally tweeting specific things to benefit his financial position. This raises ethical and legal questions about the behavior and activity of CEOs on social media platforms. Some may argue that they should be able to say whatever they want, while others will want to protect their investments and limit the comments of CEOs on partisan and other dividing issues.
+
+In this essay, we will use public tweet data from Twitter to attempt to come to a reasonable conclusion on the effect that Elon Musk's tweets have on the stock price of Tesla.
+
+We hope to answer the question:
+<br/>To what extent is the stock price of Tesla affected by Elon Musk's tweets and their content?
+
+## Hypothesis
+Based on a range of news stories and other compelling studies done on the subject of company optics, we can do our best to predict whether there is a direct correlation between the decrease in the stock price of Tesla and the content of Elon Musk's tweets around that time. In the past, Musk has been penalized by overseeing authorities for tweets that have cost his investors substantial losses. This suggests the fact that there is at least a small correlation that the disciplinary bodies—such as the SEC—are aware of. However, the actual correlation is harder to pinpoint. This is because any direct statement that suggests that Musk tweeted knowing he would affect the stock price could be treated as market manipulation, which is a much more serious accusation and requires a much more thorough investigation. For this study, we are only exploring whether the change took place due to the tweets, not whether it was intentional or not.
+
+With the previous and ongoing cases surrounding Elon Musk's tweets, as well as the real-time stock prices of Tesla being heavily volatile for numerous reasons, it is reasonable to predict that the content of Elon Musk's tweets has a decent impact on the stock price of Tesla.
+
+## Methodology
+This exploration will be broken down into several stages. First, we will explore the `snscrape` library and how it can be used to scrape tweet data. There are many reasons why direct API calls are risky to use with Twitter in particular, which need to be addressed for context. We will then use this library to scrape all of Elon Musk's tweets after 2017. 2018 as the starting year will be justified during this essay, but the overall argument stems from the fact that out of Musk's 23000 tweets, 20000 of them are from 2018 and beyond. He was also not as vocal about Tesla on social media before that time, so all the tweets in that time will not provide us useful data for our exploration.
+
+After using the `snscrape` library, we will then generate some python functions to filter this data in different ways. We will then be left with data frames and processed CSVs that we can use for the next stage.
+
+We will then look at using the `stockplot` and `yfinance` libraries to scrape the stock prices of the relevant indices. In particular, indices relating to tech companies, top 100 companies, and EV indices will be useful.
+
+We will then determine a threshold for what constitutes a significant drop in stock price, and generate a list of dates of interest.
+
+To validate this list, we will conduct an event study for one of the key dates, and train and implement a SARIMA model to prove that without the tweet happening, the stock activity would have most likely remained stable.
+
+We will then look at the content of the tweets across some of the key filtered dates, and see if there is any correlation between the content of Musk's tweets and the drastic change in Tesla's stock price.
+
+## Making Sense of `snscrape`
+
+Run the following cells to make sure that you are using the latest versions of the functions and that all the required libraries are imported.
+
+```{python}
+%load_ext autoreload
+%autoreload 2
+```
+
+```{python}
+import pandas as pd
+from twitscrape import *
+import snscrape.modules.twitter as sntwitter
+```
+
+To adequately test the different parts of snscrape, you also need to have the library installed and updated to its latest version. This is because updates to the formatting of the Twitter site can happen at any time, and the library is constantly being updated to reflect these format changes.
+
+You can install snscrape by running the following command in a conda environment:
+<br/> `pip install snscrape`
+
+Make sure it is updated by running the following command:
+<br/> `pip install --upgrade snscrape`
+
+### Why `snscrape`?
+Over the recent years, Twitter API has gotten a lot worse. Most features have been paywalled, and the ones that are available are heavily rate limited so that the servers don't get overloaded with network traffic. While this is a good thing in theory for stability, it is not ideal for people who want to scrape tweets from the site and make comments on any potential correlations. Using `snscrape` is a good way to harvest data without directly calling from the API. The only issue is that there is zero official documentation on how to use it in a python wrapper environment, as it was intended to be used in a shell environment. The following sections will detail the discovery process that we went through in order to learn about the different modules that `snscrape` has, and will go through how to scrape tweets and other metadata from a profile, using helper functions.
+
+Note: This library was created by the user "JustAnotherArchivist" on GitHub, and the repository is linked [here](https://github.com/JustAnotherArchivist/snscrape).
+
+### Looking at different modules
+
+Some modules include:
+* TwitterProfileScraper
+* TwitterTweetScraper
+* TwitterUserScraper
+* TwitterTrendsScraper
+
+For the purposes of our exploration, we want to look at TwitterUserScraper, as it doesnt include other people mentioning the user that we are requesting the search for. 
+
+You can look at all the contents that it gets from the most recent tweet in a profile, and from that we can grab all of the useful data we need and manipulate it however we want.
+
+Below is a cell that will grab the data of the latest tweet from NAME's twitter profile, try it if you want and see all the info we can use.
+
+```{python}
+NAME = "jack" #paste the twitter handle here without the '@'
+user_scraper = sntwitter.TwitterUserScraper(NAME).get_items()
+for tweet in user_scraper:
+    break
+tweet
+```
+
+As you can see, various metadata is captured by the generator and stored in different modules. For example, `date` gives you the date and time that the tweet happened, retweetCount and likeCount give you the number of retweets and likes that a tweet has gotten respectively. We can call these values individually by calling the iterable variable, in this case `tweet`, followed with a dot and the field that we want to look at.
+
+`tweet.displayname` returns the display name of the twitter user, while `tweet.followersCount` tells you the amount of followers that the user had at the time of tweeting.
+
+### Pulling Specific Data From a Tweet
+
+In `twitscrape.py`, there is a function called `get_tweet` which returns the content of a tweet using the rawContent module.
+
+Feel free to test grabbing the content of a tweet from any account using the code cell below.
+
+If the tweet is an image, a shortened hyperlink to the tweet will be the output.
+
+```{python}
+NAME = "jack"
+tweet = get_tweet(NAME)
+print(tweet)
+```
+
+You can call multiple elements from the scraper generator at once, and print their values in a list to see a the content of a tweet, as well as its key metadata.
+
+The `get_tweet_data` function does this and returns the date, tweet, likes and retweets for the latest tweet on a specified profile.
+
+```{python}
+NAME = "jack"
+tweet_data = get_tweet_data(NAME)
+print(tweet_data)
+```
+
+The date is in a weird format, however, if we were to print this extracted date separately, it would look normal. This is because the date is being stored as a datetime object. Datetime objects store each piece of information about the date and time as separate integers, and they are converted and output based on a specified output format. These objects can be used to call different parts of the object such as the date only, if you wanted to compare them to a different date and time. This is an approach we can take to compare the day of a tweet to the day of a stock price. Use [this](https://www.listendata.com/2019/07/how-to-use-datetime-in-python.html#id-886a0d) link to learn more about datetime objects.
+
+For this part of the exploration, it is best to convert the datetime object into a string, which can then be broken down into aspects for date and time manually. Later in the exploration we will work with datetime objects directly, but since this data will be exported to a csv and implicitly converted to a string anyways, working with strings is easier in this case. The `datetime` class has a function which can do this, and below you can see its implementation.
+
+(For simplicity, a `get_tweet_date` function was defined that gets the date of the latest tweet from a profile.)
+
+```{python}
+NAME = "jack"
+dates = get_tweet_date(NAME)
+print(dates)
+date = dates.strftime("%d-%m-%Y")
+time = dates.strftime("%H:%M:%S")
+date_type=type(date)
+time_type=type(time)
+print(f"The date of this tweet is {date} and it is a {date_type}.")
+print(f"The time of this tweet is {time} and it is a {time_type}.")
+```
+
+### Scraping Tweets Within a Certain Timeframe.
+Using the basis of the previous functions, the elements can be combined to scrape a profile for a certain number of tweets. It can then later be customized to allow for the number of tweets scraped to be determined, as well as all the tweets tweeted in a certain month. The function `get_thou_tweets` starts by taking the twitter handle as an input, and stores the list of the last 1000 tweets in a csv called `"NAME-1000.csv"` in the `raw-data` folder, where name is the display name of the twitter profile. The data is stored as a Pandas dataframe, with the rows representing the date, time, content, and view count of the tweet respectively. The dataframe is then returned for further analysis and plotting.
+
+```{python}
+NAME = "jack"
+
+last_thou_tweets = get_thou_tweets(NAME)
+```
+
+Running the above cell meant that the scraper had to be iterated with 1000 times. While this specific function doesn't take too long, it can become very time consuming if tens of thousands of tweets are iterated through. While this time is difficult to cut down due to the nature of the scraper collecting the data, keeping the file size down is imperative.
+
+One way we did this was by considering looking at all tweets in a specific month, and perhaps using this data to determine tweet activity per month.
+<br/>The function `get_tweets_in_month` scans the same 10000 tweet period, but this time only tweets within a specified month are saved to the csv. This data is viewable from the `raw-data` folder.
+
+Note: This function differs to the previous ones in a few ways. The `statusesCount` (total tweets) value needs to be grabbed from an object within the `user` object, so that the loop can be broken out of if the loop index surpasses it. The position of the loop conditions changes, and the additional object call takes place at the start of the for loop.
+
+```{python}
+NAME = "jack"
+MONTH = "Feb"
+tweets = get_tweets_in_month(NAME,MONTH)
+```
+
+This function has to scrape through the entire tweet list of a user, which in some cases can be very large. This is unfortunately unavoidable. To prevent this time-heavy task from being repeated multiple times, we decided that the best approach would be to do the large initial data scrape with `snscrape` and save the output to a csv, and then programmatically filter it down by reading into a variable and iterating through the list. This second stage is almost instant, no matter the size of the data, and means we can filter down the raw data as many times as needed without a conceivable time penalty.
+
+## Generating Raw Data
+
+Now that we have an understanding of the different aspects of the scraping library and different ways to filter the tweet, we can apply this to our project.
+
+Because of the fact that the majority of Elon Musk's tweets were after 2017, and Tesla began to rapidly grow around 2018, it would make sense to only scrape the tweets that took place in 2018 and beyond. However, this is still a significant number of tweets (20000) and will take a long time to run. Since Elon Musk has 23000 tweets in total, for completeness we will be scraping through all tweets.
+
+The function `get_all_tweets` scrapes through a user's entire profile for all tweets and stores the data in a csv. The output is in the `raw-data` folder.
+
+**Note**: This *will* take an extremely long time to run. The data we used for this exploration is already in the `raw-data` folder, as we ran the function in advance to save time. Rerunning the below cell will simply overwrite the current csv to include any new tweets in the time that has passed. This will not affect our visuals. If you don't want to wait 8 minutes for the function to grab all the data, running this cell is **optional**.
+
+```{python}
+NAME = "elonmusk"
+tweets = get_all_tweets(NAME)
+```
+
+### Manipulating the Scraped Tweets
+
+For this section, run the cell below to import the tweet filtering functions.
+
+```{python}
+from csv_process import *
+```
+
+With all this data stored in a csv,we can filtered down further based on specific dates or omit other data if needed. The easiest way to do this is by writing all the data in the csv to a variable that can be manipulated.
+
+The function `read_to_variable` takes the name of the scraped data we are looking for and returns a list of all the tweet data.
+
+**Note**: The files are stored with the name format: `*name*-all-tweets.csv`. If you are looking for the file that has all of Elon Musk's tweets, the calling function would be:
+`read_to_variable("elonmusk")`.
+
+```{python}
+NAME = "elonmusk"
+tweets = read_to_variable(NAME)
+```
+
+With all the data in rows, it can then be iterated through to only include tweets that meet specific criteria. That way there is a much smaller dataset to work with. For example, we would do this if we only wanted tweets tweeted on a certain date.
+
+The function `show_tweets_on` takes a list of tweets and a target date as the input, and returns the tweets that were tweeted on that date. This function also removes replies made by the account, as they branch of into separate conversations, and are not in the scope of this exploration.
+
+**Note**: The date should be in the format `mm-dd-yyyy`
+
+```{python}
+DATE = "02-14-2020"
+specific_tweets_on_date = show_tweets_on(tweets,DATE)
+print(specific_tweets_on_date)
+```
+
+In some cases, the tweets we want to examine might not have taken place on the exact date that the stock price dropped. Hence, we would want to look at all tweets tweeted within a specific time period. The function `get_tweets_around` takes a name and the number of days before and after a given date to look for tweets for. This function omits replies by checking if the first character of the tweet is an `"@"` symbol.
+
+<br/>**Note**: The date should be in the format `yyyy-mm-dd`<br/>
+
+```{python}
+DATE = "2021-12-12"
+RANGE = 3
+specific_tweets_around_date = get_tweets_around(tweets,DATE,RANGE)
+print(specific_tweets_around_date)
+```
+
+### Writing the Data
+
+Once we have all the data we need, we can write it into a pandas dataframe and store it as a csv. The dataframe is returned so that we can use the tweet content and dates in our event studies later.
+
+The function `write_to_csv` takes processed data and the intended filename as inputs, and writes the data to a csv in the `processed-data` folder with that specific name. It also returns the dataframe.
+
+```{python}
+FILENAME = f"{NAME}-tweets-around-{DATE}.csv"
+
+tweets_df = write_to_csv(specific_tweets_around_date,FILENAME)
+```
+
+## Stock Price Web Scraping
+
+After grabbing all the twitter data, the next step to answering our question is web scraping stock data of Tesla and other companies. 
+
+
+This is made easy by the existence of a library called `yfinance`, an open-source library that uses Yahoo's publicly available APIs to access the information from Yahoo! finance. Specifically, we'll be web scraping the **closing prices** of a stock on a given day. From here on out any time "raw stock data" is referenced, we mean the unchanged value of the closing prices of a stock, without normalization or any other modifications. 
+
+The first thing we can do is set the range of dates we want to scrape. We *could* choose when Tesla first IPOs to current date (Approx. 2010), but there is a more targeted approach to deciding the range of dates to reduce time complexity. It was only in 2013 that Tesla had its first profitable quarter, meaning that from it's IPO date to 2013, it's stock prices would be more affected by it's status as an high risk startup investment that wasn't making profits and this tweets. Furthermore, given that his account became verified by Twitter only in 2012, it's safe to assume 2010-2013 were years where Tesla's stock prices and Musk's tweets did not have high correlation. Furthermore, we know that it's only from 2017 and onwards when Elon Musk becomes prolific on Twitter, so we don't need to look that far back. Hence, choosing to start from 2014 to the present date would be the best range of dates we want to scrape from. 
+
+```{python}
+%load_ext autoreload
+%autoreload 2
+
+import matplotlib.pyplot as plt
+from stock_plot import StockPlot
+import pandas as pd
+import numpy as np
+
+import pmdarima as pm
+
+
+start_date = "2014-01-01"
+end_date = "2023-2-28"
+```
+
+### Comparing Stocks 
+
+First we need to choose the different stocks/indexes we will be looking at. Of course, we will be web scraping Tesla's stocks, but because we need to analyze when Tesla's stocks behave abnormally compared to the rest of the market, we need a control group. 
+
+We decided that the Nasdaq 100, S&P 500, and a EV ETF called DRIV would be the control group that we reference when checking whether Tesla’s drop was following the overall market trend.
+
+The S&P 500 Index tracks the performance of the top 500 largest companies on the stock exchange in the US. We assume in our data analysis that the S&P 
+500 would thus represent most accurately the broad stock market behavior. Hence, we can compare Tesla's behavior to the overall market through referencing the S&P 500. The Nasdaq 100 Index is a basket of the 100 largest, most actively traded U.S companies listed on the Nasdaq stock exchange. A large portion of the index covers the technology sector, which accounts for 56% of the index's weight. We chose the Nasdaq for several reasons. First, as an index it is a good reflection to the overall stock market’s performance, and due to its high concentration of technology companies, it specifically reflects the high-tech industry which is where Tesla is in. Hence, anytime the entire high-tech market is impacted, we will be able to find out through the Nasdaq and thus be able to identify times when only Tesla's stocks drop. We also want to compare Tesla to rival competitors in the similar sector for more specific comparisons. However, electric vehicles (EV) have only become popular in the recent years. In fact, 2013 was when Tesla made its first quarterly profit, and it took until 2021 for the company to have its first profitable year. With these statistics in mind, EVs are still relatively recent, and thus not a lot of data is available on Tesla's *direct* competitors with the IPO dates being only in the last several years. However,We can look at the overall EV market to draw comparisons. The Global X Autonomous & Electric Vehicles ETF (DRIV) includes companies involved in the development of autonomous vehicles and companies that produce EVs or EV components—such as lithium batteries—and critical EV materials such as lithium and cobalt. This ETF would be a better reference than an individual EV competitor—such as Rivian—which lacks data. 
+
+
+
+To organize and abstract many of the tasks that will need to be done for this section of web scraping and data analysis, we developed a StockPlot class with attributes and methods which allow us perform the same action on multiple sets of data. 
+
+
+
+
+### A Brief Overview of the StockPlot Class
+
+Below is a short generalization of the different attributes & methods. Some of these will be explained later in the essay, but for a more in depth look, please refer to the docstrings in `stock_plot.py`.
+
+Attributes:
+1. **ticker symbol**: The shorthand name for a stock. For example, Tesla's ticker symbol is **TSLA**. We save this symbol for graphing purposes and for specifying in yfinance's function which stock data to pull 
+2. **start & end dates**: Just the start and end dates of our range of data we web scrapped 
+3. **stock data**: This is the raw closing price stock data of each date in our range. It's important to note that Wall Street is only open on weekdays, meaning that there will be date skips for our stock data. This will come into play later
+
+Methods:
+1. **Getter methods**: StockPlot has a getter method for getting the raw stock data and the ticker value
+2. **Creating Percent Variance**: A method which returns the percent variance of the stock per day in a pandas series. This will be expounded upon later
+3. **Creating Normalized stock prices**: A method which returns the normalized versions of the stock prices in pandas series form. This allows us to compare the behavior of stocks with vastly different prices
+4. **Creating a subrange of stock prices**: A method which returns a subset of stock data with specified ranges
+
+## Plotting Basic Time Series
+Next, for each company/index stock, we create an StockPlot object for them and put then in a list. This allows our data to be organized. We then plot the graphs. 
+
+```{python}
+
+# Creating StockPlot Objects
+tesla = StockPlot("TSLA", start_date, end_date)
+nasdaq = StockPlot("^NDX", start_date, end_date)
+sp500 = StockPlot("^GSPC", start_date, end_date)
+ev_etf = StockPlot("DRIV", start_date, end_date)
+
+
+#Storage for organization & easy plotting
+market_list = [tesla, nasdaq,sp500]
+ev_list = [tesla, ev_etf]
+all_list = [tesla, nasdaq, sp500, ev_etf]
+
+#Settings for the graph dimensions
+
+#Plot 1: Market Indexes vs TSLA
+fig, axes = plt.subplots(2, 1, figsize=(17,9))
+fig.suptitle(' Comparing TSLA vs Market Indexes (Nasdaq & S&P 500)')
+
+#Subplot 1: Raw Closing Stock Prices
+ax = plt.subplot(1, 2, 1)
+plt.text(-0.1, 1, "(a)", transform=ax.transAxes, size=20) #Subplot figure
+
+for symbol in market_list:
+    symbol.get_stock_data().plot(label=symbol.get_ticker())
+    
+plt.ylabel("Raw Stock price at Closing ($)")
+plt.title("Stocks Over Time (Actual Raw Stock Values)")
+plt.legend()
+
+#SubPlot 2: Normalized Closing Stock Prices
+ax = plt.subplot(1, 2, 2)
+plt.text(-0.1, 1, "(b)", transform=ax.transAxes, size=20) #Subplot figure
+
+for symbol in market_list:
+    symbol.get_normalized_data().plot(label=symbol.get_ticker())
+
+plt.ylabel("Normalized Stock price at Closing")
+plt.title("Stocks Over Time (Normalized for Scale)")
+plt.legend()
+
+#Subplot & Captioning
+caption="Figure 1. Illustrates the raw (Figure 1a) and normalized (Figure 1b) stock data behavior of Tesla in comparison to the Nasdaq and S&P 500 indexes"
+plt.figtext(0.5, 0.1, caption, wrap=True, horizontalalignment='center', fontsize=12)
+
+plt.show()
+
+
+#Plot 2: Tesla vs EV ETF
+fig, axes = plt.subplots(2, 1, figsize=(17,9))
+fig.suptitle("Comparing TSLA with an EV ETF (DRIV)")
+
+#Subplot 1: Raw Stock Data
+ax =plt.subplot(1, 2, 1)
+plt.text(-0.1, 1, "(a)", transform=ax.transAxes, size=20) #Subplot figure
+for symbol in ev_list:
+    symbol.get_stock_data().plot(label=symbol.get_ticker())
+    
+plt.ylabel("Raw Stock price at Closing ($)")
+plt.title("Stocks Over Time (Actual Raw Stock Values)")
+plt.legend()
+
+#SubPlot 2: Normalized Closing Stock Prices
+
+ax = plt.subplot(1, 2, 2)
+plt.text(-0.1, 1, "(b)", transform=ax.transAxes, size=20) #Subplot figure
+for symbol in ev_list:
+    symbol.get_normalized_data().plot(label=symbol.get_ticker())
+
+plt.ylabel("Normalized Stock price at Closing")
+plt.title("Stocks Over Time (Normalized for Scale)")
+plt.legend()
+
+#Subplot & Captioning
+caption="Figure 2. Illustrates the raw (Figure 2a) and normalized (Figure 2b) stock data behavior of Tesla in comparison to an EV ETF called DRIV"
+plt.figtext(0.5, 0.1, caption, wrap=True, horizontalalignment='center', fontsize=12)
+
+
+plt.show()
+
+
+```
+
+You notice quickly that plotting the Indexes vs the Tesla stocks on one graph is not useful because the Nasdaq and S&P500 indexes' prices are so much larger than Tesla's stock. To compare the behavior, we can scale the prices through normalization via `get_normalized_data()` method which uses the `sci kit` library's built-in normalization function to reduce all the values to between 0-1 while preserving the overall behavior/weight of each closing price on that given day. 
+
+You can also notice that the EV ETF DRIV we compare Tesla to only has data starting around 2017~2018 because that is when it IPOed. 
+
+From these graphs, we can get a good idea of the stock behavior and check for stationary in our data. Based on the fact that all the data that we're working with has a clear trend (the stock price average changes over time) this means that all our data is **not stationary**. The term 'stationary' in data refers to the fact that observations are not dependent on time, and that the statistical properties (mean, variance, and covariance), are constant. In our graphs, we can see that the mean value of the stock changes over time.
+
+Another way we can prove that our data is not stationary is by using the Augmented Dickey-Fuller Test. A quick explanation is that this is a unit root test that checks whether the data is not stationary using the p-value of our data. If the p-value is smaller than a set significance level (~0.05), then the series is stationary because it means that the coefficient of the first lag (alpha) is equal to one, or α=1.
+
+
+```{python}
+adf_test = pm.arima.stationarity.ADFTest(alpha=0.05)
+res = adf_test.should_diff(tesla.get_stock_data())
+conclusion = "non-stationary" if res[0] > 0.05 else "stationary"
+print(f"Our p-value is {res[0]} which means that our data is {conclusion}")
+```
+
+Now that we've proved that our data is non-stationary, further decisions can be made on how to analyze the stock data. Because the data is non-stationary, it means that we can't use the raw or normalized data to forecast future stock prices, nor identify all the instances where Tesla's stock behavior is abnormal relative to the rest of the market. We want to identify every instance where Tesla's stock price was negatively affected by Elon Musk's tweets. However, not all stock drops will be correlated with Elon’s tweets. For example, the entire stock market could drop due to extenuating circumstances (I.e war, Fed reserve meeting, etc), so Tesla’s stock dropping would not be caused by anything that Elon did specifically. So, we want to be able to filter out times when the entire stock market drops, irrespective of Elon’s tweets.  
+
+To do this we need to identify the dates for when the entire stock market dips and filter these days out from the list of days that Tesla's stock market dips. Because our data is non-stationary, to do this, we need to take the percent variance of all the stocks. Percent variance is the rate of change between days in a percentage of the previous point. For example, if the stock was 100 on the first day and then 80 on the second, the percentage variance of the second day is -20% from the first day. This way we do not need to factor in the sheer difference in scale of all the stock values nor it's non-stationary nature.
+
+```{python}
+fig, axes = plt.subplots(3, 1, figsize=(20,17))
+locs, labels = plt.xticks()
+
+
+fig.suptitle("Percent Variance Between TSLA and Other Indexes/ETFs", fontsize= 20)
+
+#TSLA vs Nasdaq
+ax = plt.subplot(3, 1, 1)
+plt.text(-0.1, 1, "(a)", transform=ax.transAxes, size=20) #Subplot figure
+
+tesla.get_variance_data().plot.bar(label=tesla.get_ticker(), color = 'b')
+nasdaq.get_variance_data().plot.bar(label=nasdaq.get_ticker(), color = 'r')
+plt.axhline(y = 0, color = 'black', linestyle = '-', alpha=0.5)
+
+plt.xticks(rotation=0)
+plt.legend()
+plt.ylabel("Percent Variance (%)", fontsize=12)
+plt.title("Percent Variance of Tesla and Nasdaq")
+locs, labels = plt.xticks()
+N = 150
+new_labels = [labels[::N][i].get_text()[0:10] for i in range(len(labels[::N]))]
+plt.xticks(locs[::N], new_labels)
+
+#TSLA vs S&P500
+ax= plt.subplot(3, 1, 2)
+plt.text(-0.1, 1, "(b)", transform=ax.transAxes, size=20) #Subplot figure
+
+tesla.get_variance_data().plot.bar(label=tesla.get_ticker(), color = 'b')
+sp500.get_variance_data().plot.bar(label=sp500.get_ticker(), color = 'orange')
+plt.axhline(y = 0, color = 'black', linestyle = '-', alpha=0.5)
+
+plt.xticks(rotation=0)
+plt.legend()
+plt.ylabel("Percent Variance (%)", fontsize=12)
+plt.title("Percent Variance of Tesla and S&P 500")
+locs, labels = plt.xticks()
+N = 150
+new_labels = [labels[::N][i].get_text()[0:10] for i in range(len(labels[::N]))]
+plt.xticks(locs[::N], new_labels)
+
+
+#TSLA vs DRIV
+ax= plt.subplot(3, 1, 3)
+plt.text(-0.1, 1, "(c)", transform=ax.transAxes, size=20) #Subplot figure
+
+tesla.get_variance_data().plot.bar(label=tesla.get_ticker(), color = 'b')
+ev_etf.get_variance_data().plot.bar(label=ev_etf.get_ticker(), color = 'y')
+plt.axhline(y = 0, color = 'black', linestyle = '-', alpha=0.5)
+
+plt.xticks(rotation=0)
+plt.legend()
+plt.ylabel("Percent Variance (%)", fontsize=12)
+plt.title("Percent Variance of Tesla and DRIV")
+locs, labels = plt.xticks()
+N = 150
+new_labels = [labels[::N][i].get_text()[0:10] for i in range(len(labels[::N]))]
+plt.xticks(locs[::N], new_labels)
+
+
+caption="Figure 3. Compares Tesla's percent variance with the percent variance of the Nasdaq (Figure 3a), S&P 500 (Figure 3b), and DRIV (Figure 3c)"
+plt.figtext(0.5, -0.01, caption, wrap=True, horizontalalignment='center', fontsize=12)
+
+plt.show()
+
+
+
+
+```
+
+Since we know that Tesla is a lot more volatile compared to the other stocks, it isn't surprising that Tesla has more extreme percentage variance. We can also note that in Figure 3c, which compares Tesla and the EV ETF, starts at 2018 because that is when the ETF IPOed. However, now we can visually see that on some dates, Tesla's percent variance moves inversely compared to the rest of the market. Here is one example of a zoomed in visual comparing Tesla with the Nasdaq for an arbitrary range of dates. 
+
+```{python}
+start_range =1250
+end_range = start_range + 100
+
+#PLotting figure 4
+fig, axes = plt.subplots(1, 1, figsize=(16,7))
+tesla.get_variance_data()[start_range: end_range].plot.bar(label=tesla.get_ticker(), color = 'b')
+nasdaq.get_variance_data()[start_range: end_range].plot.bar(label=nasdaq.get_ticker(), color = 'r')
+
+plt.xticks(rotation=0)
+plt.legend()
+plt.ylabel("Percent Variance (%)")
+plt.title("Percent Variance over Time")
+locs, labels = plt.xticks()
+N = 10
+new_labels = [labels[::N][i].get_text()[0:10] for i in range(len(labels[::N]))]
+plt.axhline(y = 0, color = 'black', linestyle = '-', alpha=0.75)
+plt.xticks(locs[::N], new_labels)
+
+
+caption="Figure 4. A sample zoomed in image of Percent Variance comparing Tesla and Nasdaq"
+plt.figtext(0.5, -0.01, caption, wrap=True, horizontalalignment='center', fontsize=12)
+
+plt.show()
+```
+
+From a quick scan, we can see that there are multiple instances where Tesla's either increased or decreased inversely to the Nasdaq's prices. However, we need to be able to determine which windows of time we want to zoom in for all of our date ranges, and the sheer amount of data makes it impossible to do it manually. This is where our automated filtering comes into play.
+
+## Filtering Process
+
+All this stock analysis and plotting so far has been building up to what we want to do, which is filter out when the Tesla's stock behavior in an anomalous manner compared to the rest of the market so that we can find a list of dates that could possibly be affect by Elon Musk's tweets. Specifically, we'd want to see when the stocks go down. The most straightforward method to filtering would be a set threshold for anomaly detection by using the percent variance of the different stocks. Whenever Tesla's percent variance for the day decreased (at least -2%), while the rest of the market was either stable (0% increase) or increasing, we want to flag and record that date as a date of interest for later event study investigations. For accuracy reasons, we will compare Tesla's behavior with the two market indexes we've been working with. We will not being using DRIV to compare at this point since Tesla is the second largest holding of DRIV, so Tesla's performance would strongly influence the ETF as a whole. This could pose a problem as it could eliminate interesting dates we'd like to examine. However, for individual case studies, we can use DRIV's behavior to further corroborate our investigations.
+
+For determining our set thresholds of anomaly detection, we are going to be interested in Tesla's stocks which decreased by at least 2% while our control group (Nasdaq & S&P 500) would either increase, be at 0, or decrease by less than -0.5% (Any value less than -0.5% decrease is not significant enough to be considered a real drop in stock value). This way, we only get dates where there was significant decrease in Tesla while there was no significant decrease in the control group.
+
+```{python}
+var_data = [stock.get_variance_data() for stock in all_list]
+raw_data = [stock.get_stock_data() for stock in all_list]
+
+name_list = [stock.get_ticker() for stock in all_list]
+
+merged_frame = pd.concat(var_data, axis=1)
+combined_varframe = merged_frame.set_axis(name_list, axis=1)
+
+filtered_dates_before =[]
+filtered_dates =[]
+
+#The Date before (Only for graphing usage)
+for i in range(1, len(combined_varframe)):
+	row = combined_varframe[i:i+1]
+
+	if round(row['TSLA'].values[0], 2) < -0.02 and all([round(row[str(stock.get_ticker())].values[0],2)>=0 for stock in market_list[1:]]):
+		filtered_dates_before.append(str(combined_varframe[i-1:i].index[0])[0:10])
+
+#The actual final dates when the percent variance is
+for index, row in combined_varframe.iterrows():
+
+    if round(row['TSLA'], 2) < -2 and all([round(row[str(stock.get_ticker())],2)>=-0.4 for stock in market_list[1:]]):
+        filtered_dates.append(str(index)[0:10])
+
+ranked_years ={"2014":0, "2015":0, "2016":0, "2017":0, "2018":0, "2019":0, "2020":0, "2021":0, "2022":0, "2023":0}
+for date in filtered_dates:
+    year = date[0:4]
+    ranked_years[year] +=1
+
+print(ranked_years)
+```
+
+From this, we can see that the top the most significant years that Tesla's stocks were the most volatile (without relation to the overall market) was from 2018 to 2021. For scalability, we can then just focus on all the flagged dates from these 4 years. Thus, our final list of flagged dates we need to investigate is:
+
+```{python}
+final_dates =[]
+final_dates_before=[]
+final_years = ["2018", "2019", "2020", "2021"]
+for date in filtered_dates:
+    for year in final_years:
+        if date[0:4] == year:
+            final_dates.append(date)
+
+for date in filtered_dates_before:
+    for year in final_years:
+        if date[0:4] == year:
+            final_dates_before.append(date)
+            
+print(final_dates)  #Uncomment to see all the final_dates from 2018, 2019, and 2021
+```
+
+We can then rank the dates from highest percent variance decrease through a dictionary. From Python 3.7 and above, dictionaries are order-preserving, allowing us to use the sorted() function. 
+
+
+```{python}
+ranked_dates ={}
+for date in final_dates:
+    ranked_dates.update({date: round(tesla.get_variance_data()[date], 3)})
+
+ranked = {k: v for k, v in sorted(ranked_dates.items(), key=lambda item: item[1])}
+
+
+#This is the final list of the top percent variance decreases dates in order.
+ranked_dates_only = list(ranked)
+
+for key in ranked_dates_only:
+    print(f"Date: {key} Percent Variance: {ranked[key]}%")
+```
+
+Now that we have a solid list of dates, we can start to look at the tweets the occurred during these dates by Elon Musk to see whether he was responsible or not. 
+
+### Connecting the Tweets to the Dates
+
+We can now start to analyze specific tweets during any of these flagged dates. Here is one example of using one of the flagged dates we found (2018-07-16) and web scrapping Elon's tweets on that day. A date range of 2 was used to ensure that tweets that took place outside of trading hours are also included.
+
+```{python}
+DATE = "2018-07-16"
+NAME = "elonmusk"
+print(f"Tesla Percent Variance: {tesla.get_variance_data()[DATE] }%")
+print(f"Nasdaq Percent Variance: {nasdaq.get_variance_data()[DATE] }%")
+print(f"S&P 500 Percent Variance: {sp500.get_variance_data()[DATE] }%")
+
+tweets_list = read_to_variable(NAME)
+key_tweets_1 = get_tweets_around(tweets_list,DATE,2)
+
+for tweet in key_tweets_1:
+    print(tweet)
+```
+
+As we can see, Elon addressed a report of being a donor to the GOP on the 15th. Issues revolving around political donations have the potential to isolate groups of people as they disagree with policies made by a specific side. This naturally means that the stock of his most popular company is likely to be affected by such an allegation. The fact that this tweet was the most liked and retweeted by a significant margin compared to other his other tweets made around the time shows that it was shared around the platform a lot more. This is a well-known phenomenon on social media: posts that generate controversy and have a larger real-world impact are more likely to be shared with more people.
+
+Furthermore, we can see from referencing our control group percent variances that their stock decreased around 0.1~0.2%, while Tesla's stocks decreased by a startling 2.75%. This clearly eliminates the overall market to be the reason for Tesla's stock drop. Whatever caused Tesla's stocks to drop only affected Tesla.
+
+### Red Herrings & Contextual Evidence
+
+Of course, Elon Musk's tweets wll not always be the cause for Tesla's isolated stock drops. There will be red herrings from our filter where his tweets are completely irrelevant to the stock behavior. To figure out which dates are red herrings we must analyze the current events of those dates.
+
+For example, the second date on the list is Tesla specific but is a red herring for our data analysis. On Jan 18, 2019, Tesla cut it's workforce by 7%. This event is a Tesla specific event that did not affect the rest of the market, and significant layoffs will affect stock values. However, the stock drop it is not related to Musk's tweets. 
+
+
+Furthermore, our question on whether Elon Musk's tweets affect his stock prices calls into focus the ripple effects of Elon Musk's tweets in general, which can complicate matters as we cannot rely solely on Elon's Musk's tweets on the day of the stock drop. We need to also be aware of the context behind the flagged dates. 
+
+
+For example, the first date on our list, Sept. 28th, 2018, is when the Securities and Exchange Commission (SEC) sued Elon Musk over his tweets on making Tesla private [(Source)](https://www.cbsnews.com/news/sec-sues-tesla-ceo-elon-musk-for-fraud-over-going-private-tweets/). This event obviously would drastically impact Tesla's stocks and only Tesla as it Elon Musk specific. This also is a date which is related to Elon Musk and his tweets, but it isn't a direct correlation. However, the fact that the SEC lawsuit was triggered by a tweet by musk which ended up making the stocks dip over 13% means that Elon Musk's tweets negatively affected Tesla's stock prices. 
+
+To shift through red herrings and correctly understand more complicated cases, we have to get contextual background information. Thankfully, through a quick internet search on what happened in regards to Tesla or Elon Musk approximately during the flagged dates can solve these problems. 
+
+Furthermore, we need to take into account weekends. Any tweets made during the weekend wouldn't have a stock closing price or percent variance associated with it, so we'd have to look at the last 2 days worth of tweets if a stock dropped on a Monday. Overall, it's best practice to have at least the last 2 days of tweets leading up to the flagged date. 
+
+
+In short, we need to rely both on Elon's tweets from our web scraping and contextual evidence to properly analyze our flagged dates. 
+
+## The Top 20
+
+For the scope of our project, we'll be briefly analyzing the top 20 largest percent variance decreases because it illustrates how impactful Elon Musk's tweets can potentially be. From then, for scalability reasons, we can conduct an event study on one of the dates.
+
+
+### Finding Corresponding Tweets
+
+We can use the `show_tweets_around` function defined earlier to generate a list of all the tweets made around each of the filtered dates. We can then manually make insightful deductions as to whether the tweet content played a factor in the stock price decrease.
+
+We will choose the top 20 dates from the list of potential key dates to grab the tweets from and analyze the content of the tweets tweeted around them. By doing this we will effectively be able to assess whether the tweet was the key factor or not, by looking at the relevance of the content of the tweets around that time period.
+
+
+
+```{python}
+NAME = "elonmusk"
+tweets_list  = read_to_variable(NAME)
+
+for date in ranked_dates_only[0:20]:
+    print(f"\n Date is:{date} \n")
+
+
+    key_tweets = get_tweets_around(tweets_list,date,2)
+
+    for tweet in key_tweets:
+        print(tweet)
+```
+
+We print out all the tweets he said on these dates.
+
+To view all of the data yourself, you can click on the "open full output in a text editor" hyperlink.
+
+In general, a lot of the tweets are irrelevant or would not have any impact on stock prices. This is to be expected, as not all of the drops in stock price were mentioned by Elon, and there were often other external factors such as layoffs, or accidents relating to the autopilot that caused the stock price to go down further. However, some of the tweets which he said clearly influenced his stock prices. Below are some of the notable examples.
+
+* Around the 3rd of May 2018, Elon began a thread by tweeting: "Please ignore this thread unless you’re interested in a tedious discussion about Tesla stock". He then made several tweets after this talking about how Tesla was the most shorted (bet against) stock on the market, and other comments which questioned the stability of the Tesla supply chain.
+
+* Around the 15th of March 2019, Elon made jokes about the model letters of all his cars spelling out the term "S3XY", which was the biggest news piece about Tesla circulating the internet at the time. This can therefore be seen as a key tweet that affected the stock market in the coming days.
+
+* Around the 26th of April 2019, Elon tweeted three words: "Tesla blows haha". Clearly making these statements about your own company (even though it was clearly a joke) does not sit well with investors.
+
+* Around the 21st of December 2020, Elon made many comments about the safety of Dogecoin and Bitcoin. The crypto space was under scrutiny at the time, so any tweets about fiat and crypto at that time by key figures such as tech CEOs were likely to be taken seriously.
+
+* Moving into 2021, around the 10th of February Elon tweeted about buying Bitcoin for his child, and made an associating reference to Kanye West. In 2021 Kanye West was no longer considered a brand safe figure, so even mentioning him would be enough to have an impact on any company.
+
+Now that we have evidence that some of the dates that were flagged have tweets that have a strong case for it impacting Tesla's stock, we can do event studies to dive deeper into what exactly happened on that day in regards to Elon Musk's tweets and Tesla's stock. 
+
+
+## Event Study #1: Nov. 6-8th 2021
+
+From our data, Nov. 8th, 2021 was flagged with a noticeable percent variance decrease of -4.8%. We began to analyze this date a bit more. 
+
+
+### Contextual Background Information
+
+On Saturday (Nov. 6th, 2021), Elon Musk made a Twitter poll saying: "Much is made lately of unrealized gains being a means of tax avoidance, so I propose selling 10% of my Tesla stock." and asked users to vote yes or no on whether he should sell his stocks. When the market re-opened on Monday (Nov. 8th, 2021), the stock tumbled, making Tesla lose $60 billion of its market value. Here are the tweets said around the key date of the 8th of November 2021.
+
+```{python}
+interesting_date = "2021-11-08"
+
+key_tweets_1 = get_tweets_around(tweets_list,interesting_date,2)
+
+for tweet in key_tweets_1:
+    print(tweet)
+```
+
+As we can see, the last tweet found in the date range says that Elon proposed the idea of selling a large percentage of his stock. A proposal like this, no matter how serious, understandably worried investors and we can comfortably say that if any of the tweets in this range contributed to the large stock price decrease, it would have been this one. As the last column shows, this was Elon Musk's most retweeted tweet in this period, suggesting that it was spread the most across the platform. This higher virality than average is typical of tweets that are hypothesized to have a large impact on a global scale. 
+
+We can also look at a breakdown of the Tesla stock behavior through a visual. 
+
+```{python}
+print(f"Flagged date is: {interesting_date}")
+print(f"Tesla Percent Variance: {tesla.get_variance_data()[interesting_date] * 100}%")
+print(f"Nasdaq Percent Variance: {nasdaq.get_variance_data()[interesting_date] * 100}%")
+print(f"S&P 500 Percent Variance: {sp500.get_variance_data()[interesting_date] * 100}%")
+print(f"DRIV Percent Variance: {ev_etf.get_variance_data()[interesting_date] * 100}%")
+
+
+
+
+fig, axes = plt.subplots(1, 1, figsize=(20,6))
+
+date_range =200
+tesla_ranged = tesla.get_range_date(interesting_date,range_date=date_range)
+tesla_ranged.plot(label=tesla.get_ticker())
+plt.axvline(x="2021-11-06", linestyle='--',color="g", label="Day Of Tweet")
+
+plt.scatter(x='2021-11-08',y=tesla.get_stock_data()[interesting_date] , color="red", label="Flagged Date") 
+plt.title("Nov 6th Tweet Stock Breakdown")
+plt.legend()
+plt.ylabel("Stock Prices ($)")
+caption="Figure 5. A 400 day window 200 days before and after a flagged date with a corresponding tweet"
+plt.figtext(0.5, -0.01, caption, wrap=True, horizontalalignment='center', fontsize=12)
+
+plt.show()
+```
+
+From this visualizaton we can see a sharp downturn trend following Elon Musk's tweet. The  percent variance data shows that while Tesla's stocks dropped by almost 5% when the market re-opened on Monday (Our flagged date), the overall market (S&P 500) and the EV etf stayed the same/increased, while Tesla decreased. While the Nasdaq only fell -0.14%, the fact that the control group did not react means that our filter methodology identified a date of interest which has a corresponding tweet from Musk where we could attribute as a cause for the dip.
+
+
+However, we can also go one step further and use an Autoregressive Integrated Moving Averages Model to forecast what the stock prices should've been based on past data to prove the Elon Musk's tweet was a prime factor in the dip in value. 
+
+## Seasonal Auto Regressive Integrated Moving Averages Model (SARIMA)
+A SARIMA model is a statistical analysis model which **allows us forecast future trends using past time series data.** Technically, it is based of the ARIMA model (Auto Regressive Integrated Moving Averages) except the SARIMA model takes into factor Seasonality. We will not be focusing on Exogenous variables (SARIMAX) in our model.
+
+We can break down the SARIMA Model by its components:
+
+1. **AR(p)**: A linear model where current values are a sum of past values multiplied by a numeric factor. `“p”` is the order (number) of time lags. The equation for this is:
+$$\sum_{n=1}^{p}\alpha_n X_{t-n} $$
+2. **I(d)**: To compensate for data which is non-stationary/has a trend, we need Integration or Differencing. `"d"` is the number of differencing required to make the time series stationary.
+
+3. **MA(q)**: A moving average model and q is the number of lagged forecasting error terms in the prediction. `"q"` is the order (size) of the moving average window. The equation for this is:
+$$\sum_{n=1}^{q}\theta_n \varepsilon_{t-n}$$
+
+However, to take seasonality into account, we also need seasonal versions of p, d, and q, which we show through capitalization (P, D, and Q). The equations for `P` & `Q` are:
+
+$$\sum_{n=1}^{P}\alpha_n X_{t-n} $$ 
+$$\sum_{n=1}^{Q}\Theta_n \varepsilon_{t-n} $$
+
+The complete SARIMA model format is `SARIMA(p,d,q)(P,D,Q,s)` where `s` accounts for the seasonality cycle. For example, s=12 means a monthly. 
+
+The full equation form is:
+$$ X_t = c + \sum_{n=1}^{p}\alpha_n X_{t-n} + \sum_{n=1}^{q}\theta_n \varepsilon_{t-n} + \sum_{n=1}^{P}\alpha_n X_{t-n} + \sum_{n=1}^{Q}\Theta_n \varepsilon_{t-n} +  \varepsilon_t$$
+
+
+The mathematical proof is is well documented [here](https://real-statistics.com/time-series-analysis/seasonal-arima-sarima/sarima-models/).
+
+Granted, full mathematical understanding is not necessary to using a SARIMA model as long as you understand the overall concept and what the values of p,d,q and its seasonal counterparts mean. Python has a great library called `pmdarima` which performs everything you need to do for making a SARIMA model.
+
+ Also, the SARIMA model is not perfect. It does not take into account variability when looking at the historical data to make it's forecasts. Furthermore, predicting stock behavior is always going to be problematic due to the highly complex nature of all the forces that play into affecting stock prices. However, for the scope of this project, the SARIMA model can give us a good sense as to the *trajectory* of what the stock behavior should have be based on historical data. 
+
+
+### Creating te SARIMA Model
+
+To create the SARIMA model, we need to choose our training and testing data. For our training data, we'll be using all of Tesla's raw stock data from the start of or range to the last day recorded before Elon Musk sent out that tweet on Saturday. Thus, the last day recorded would be Friday, Nov. 5th, 2021. Our test data will be any days after Nov 5th, 2021. However, for brevity, we'll only be looking 20 days after the tweet to compare the modelled behavior versus the actual stock behavior. 
+
+```{python}
+#Separating Test & Train data
+#Index 1976 is 2021-11-05
+from sklearn.model_selection import train_test_split
+#Train Data: We're selecting all the days before the dashed line for TSLA as train data.
+#Test Data: Approximately a month after the dashed line (20 data points)
+train, test = train_test_split(tesla.get_stock_data(), train_size=1976, shuffle=False)
+```
+
+To built our SARIMA model, we can use a built in function of pmdarima called auto_arima. This will automatically find the best values for p, d, q, P, D, and Q by minimizing the AiC or the Akaike Information criteria. 
+
+```{python}
+#Use the auto_arima function built into select the best p,m,d values
+auto_model = pm.auto_arima(train, seasonal=True, m=12, D=1, trace = True,
+                          error_action ='ignore',   # we don't want to know if an order does not work
+                          suppress_warnings = True,  # we don't want convergence warnings
+                          stepwise = True)
+
+#The number of days/data points we want to forecast into the future
+predict_step =20
+forecast = auto_model.predict(predict_step)
+```
+
+We can now use the model that was built for us and predict 20 data points/dates into the future to compare with our test data. We can then visualize all this on a graph. 
+
+```{python}
+#Visualization
+
+
+from datetime import datetime
+date_object = datetime.strptime("2021-11-05", '%Y-%m-%d').date()
+fig, axes = plt.subplots(1, 1, figsize=(12,5))
+plt.plot(test.index[0:predict_step], forecast, c = 'b', alpha=0.25, label="Projected TSLA Stock Prices")
+plt.plot(tesla.get_stock_data()[1930:1977], c='b', label="Actual TSLA Prices Before Tweet")
+plt.plot(tesla.get_stock_data()[1976:(1976+predict_step)], c="r", label="Actual TSLA Prices After Tweet")
+#Graphing Lines & Shaded Areas,
+plt.axvline(x=date_object, linestyle='--',color="black", label="Day Before Tweet", alpha=0.75)
+axes.axvspan(xmin=date_object,xmax=datetime(2021, 12, 4), facecolor='black', alpha=0.25, label="Days After Tweet")
+# Set axis labels
+plt.xticks(rotation=0)
+plt.xlabel('Time')
+plt.ylabel('Stock Prices ($)')
+plt.legend()
+plt.title("SARIMA Model Forecast of Nov. 6th 2021")
+caption="Figure 6. Event Study comparing SARIMA Model forecast and actual stock behavior after tweet"
+plt.figtext(0.5, -0.01, caption, wrap=True, horizontalalignment='center', fontsize=12)
+
+plt.show()
+```
+
+We can see from this graph that the SARIMA model projected the stocks to continue to go up based on the historical data, while in actuality the stocks took a sharp nosedive. 
+
+In conclusion, through percent variance, we eliminated overall stock market movement to be the cause of Tesla's stock market going down on Nov. 8th, 2021. We then looked at twitter data and saw that Elon Musk made a Tesla stock related tweet on Saturday which could possibly affect the trajectory of Tesla's stock. We further validated that the tweet was a key factor in influencing the stock value, through our trained SARIMA model, which confirmed that the stocks were projected to have continued to increase based on historical data. The sharp dip was from an external factor that could strongly be inferred to be Elon Musk's tweet as that was the only thing that change from the 5th to the 8th. 
+
+## Event Study #2: August 7-9th, 2018
+
+Of course, one example usually isn't enough evidence to make any conclusions. Here is another event study from the top 20, on August 9th, 2018 (2018-8-9). 
+
+### Contextual Background Information
+
+On August 9th, 2018, Tesla's stock dropped -4.8%. At first, the cause for this was unclear, but it was evident that the control group had not decreased as dramatically as Tesla's stock (again less than 0.5% decrease). After looking through the tweets in the last 2 days, we notice that on August 7th, 2018, Elon claimed that he would buy Tesla so it would become private at $420 a share in a tweet that said "Am considering taking Tesla private at $420. Funding secured." Unsurprisingly, after plotting the stock closing prices, we see that from August 7th the stock prices jumped before people realized it was a joke and thus the stock corrected itself. A quick internet search found that the $420 was a reference to a cannabis joke. However, this tweet was the catalyst for the SEC to sue Elon Musk for his tweets manipulating the stock market. Unsurprisingly, a month later when the SEC announced on Sept 28th that they were going to sue Elon, Tesla's stock dropped. However, we will mainly be focusing on August 7-9th for this event study. 
+
+```{python}
+interesting_date = '2018-08-09'
+
+print(f"Flagged date is: {interesting_date}")
+print(f"Tesla Percent Variance: {tesla.get_variance_data()[interesting_date] }%")
+print(f"Nasdaq Percent Variance: {nasdaq.get_variance_data()[interesting_date]}%")
+print(f"S&P 500 Percent Variance: {sp500.get_variance_data()[interesting_date] }%")
+print(f"DRIV Percent Variance: {ev_etf.get_variance_data()[interesting_date] }%")
+
+
+fig, axes = plt.subplots(1, 1, figsize=(20,6))
+
+date_range =200
+tesla_ranged = tesla.get_range_date(interesting_date,range_date=date_range)
+
+
+tesla_ranged.plot(label=tesla.get_ticker())
+plt.scatter(x='2018-08-09',y=tesla.get_stock_data()[interesting_date] , color="red", label="Flagged Date")
+
+plt.axvline(x="2018-08-07", linestyle='--',color="g", label="Day Of Tweet (August 7th)")
+
+plt.title("August Stock Breakdown")
+plt.ylabel("Stock Prices ($)")
+caption="Figure 7. A 400 day window 200 days before and after a flagged date with a corresponding tweet"
+plt.figtext(0.5, -0.01, caption, wrap=True, horizontalalignment='center', fontsize=12)
+plt.legend()
+plt.show()
+
+```
+
+We can now built a SARIMA model like before, with the train data being all the dates before August 7th. 
+
+```{python}
+
+train, test = train_test_split(tesla.get_stock_data(), train_size=1157, shuffle=False)
+#Use the auto_arima function built into select the best p,m,d values
+auto_model = pm.auto_arima(train, seasonal=True, m=12, D=1, trace = True,
+                          error_action ='ignore',   # we don't want to know if an order does not work
+                          suppress_warnings = True,  # we don't want convergence warnings
+                          stepwise = True)
+
+#The number of days/data points we want to forecast into the future
+predict_step =20
+forecast = auto_model.predict(predict_step)
+```
+
+```{python}
+#Visualization
+date_object = datetime.strptime("2018-08-06", '%Y-%m-%d').date()
+fig, axes = plt.subplots(1, 1, figsize=(12,5))
+plt.plot(test.index[0:predict_step], forecast, c = 'b', alpha=0.25, label="Projected TSLA Stock Prices")
+plt.plot(tesla.get_stock_data()[1100:1157], c='b', label="Actual TSLA Prices Before Tweet")
+plt.plot(tesla.get_stock_data()[1156:(1156+predict_step)], c="r", label="Actual TSLA Prices After Tweet")
+#Graphing Lines & Shaded Areas,
+plt.axvline(x=date_object, linestyle='--',color="black", label="Day Before Tweet", alpha=0.75)
+axes.axvspan(xmin=date_object,xmax=datetime(2018, 9, 5), facecolor='black', alpha=0.25, label="Days After Tweet")
+# Set axis labels
+plt.xticks(rotation=0)
+plt.xlabel('Time')
+plt.ylabel('Stock Prices ($)')
+plt.legend()
+plt.title("SARIMA Model Forecast of August 7th 2018")
+caption="Figure 8. Event Study comparing SARIMA Model forecast and actual stock behavior after tweet"
+plt.figtext(0.5, -0.01, caption, wrap=True, horizontalalignment='center', fontsize=12)
+
+plt.show()
+```
+
+We can see that our SARIMA model forecasted no extreme upward spike before a harsh course correction. Instead it forecasted a moderate downward trend but unlike the actual stock prices of Tesla, it wouldn't end up going as low in value. This proves that Elon Musk's tweet was far worse for stakeholders because the actual stock prices decreased more than what was forecasted to be. 
+
+It's interesting to note that the first event study highlighted how Elon Musk's tweets prevented Tesla's stocks from increasing in price, while the second event study highlighted how his tweet's led to the stock prices dropping more than it should've. In both cases, the overall effect of his tweets were more negative than positive, meaning that stakeholders were disadvantaged because of his tweets rather than benefitting from it.
+
+## Conclusion and Insights
+In conclusion, we were able to fully answer our research question. Using statistical analysis and looking at the percentage variance of the stock prices of Tesla vs other tech indices, we were able to successfully create a list of events where the stock price of Tesla appeared to decrease independently from the rest of the stock market. In order to test our hypothesis that these drops were due to the tweets of Elon Musk, we looked at the top 20 largest percentage decreases and searched for all tweets within 2 days of that date, and saw that in around half of the cases, there was a tweet that could be considered brand unfriendly, or financial in nature. We also noticed that these tweets would receive higher interaction numbers on average than other tweets tweeted in that time period, suggesting that they had an increased virality rate on the platform. 
+
+
+We then did an event study on two of our filtered dates with tweets that had strong potential for affecting Tesla's stocks. On top of a timeline breakdown, we trained and implemented a SARIMA model to create a projection of what the stock price of Tesla would have looked like, had the tweet event not taken place. This gave us insights into the potential scenarios that could have occurred had the tweet not taken place. It confirmed the initial hypothesis as it predicted that Tesla's stock price would have likely continued to increase or not decreased as much, but his tweeting prevented that. In each event study, we took the raw tweets and did a search for all the tweets in a two-day range of the large stock price drop and found a tweet where Elon proposed the idea of selling 10% of his stock or considered making Tesla private and buying each share at $420. Both tweets would definitely have an effect on the stock price of his company. This was a key insight that confirmed our hypothesis that the content of Elon Musk's tweets affects the stock price of Tesla, and gives us a definitive answer to our original research question. We can now confidently say that the content of Elon Musk's tweets and the event of his tweeting had an effect on the stock price of his company Tesla.
+
+### Key Lessons
+During this project, we learned lessons that affected the flow and direction of our project. One key lesson was that calling large volumes of data using APIs can be a very lengthy and computationally heavy process, but it is required to ensure that the quality of our analysis is as good as it can be. In our exploration, we needed to pull all the tweets that Elon Musk has ever made from his Twitter page. With over 23000 tweets, this took almost eight minutes in the python wrapper. Because of the way that the library calls elements from Twitter without a direct API call, the scraper generator object needed to be iterated every single time, and even if we tried to filter out tweets during the raw data gathering stage, the time taken would not have decreased. This insight taught us the lesson that scraping with libraries is not the most time-efficient method of gathering data.
+
+Another lesson we learned over the course of this experiment is that the volatility of Twitter in recent times means that projects like this are very risky. With large changes going on at Twitter at the moment, the back-end structure is constantly changing, and this means that the libraries designed for scraping data from the site need to be actively updated. This is something we experienced in the early stages of the project, as we needed to reinstall snscrape to implement a change that addressed the compatibility of the Twitter API. If we did not choose a well-updated open-source library, completing this project would be much more challenging with all the unaccounted changes in other outdated libraries.
+
+Furthermore, in terms of quantitative and qualitative data analysis, we had to learn how to extrapolate insights and make assumptions which—for the scope of this project—allowed us to gather interesting revelations without over complicating matters. It is important to admit that our methodology does not look too deeply into exogenous factors and that our filtering system is probably not perfect, but it is a heuristic solution which gave us enough data for us to adequately answer our research question. Overall, we tried our best to make informed or targeted decisions with solid reasoning behind it when making design decisions in our data analysis. 
+
+## Reflections, Ethics, and Next Steps
+When starting this project, we originally envisioned a much greater timescale and made plans to compare the tweets of other CEOs to the stock prices of their companies and make a general conclusion about whether all CEO's tweets affect the stocks of their company. However, over time we realized that the scope of our project was broad enough without this, and we did not have the time to do multiple event and case studies, due to the scale of data we chose to work with. This was a key difficulty for us. Having to manually explore a scraping library and learn about training SARIMA models meant that we had to designate a reasonable amount of to explain the methodology and conduct analysis, which would include filtering down a list of 23000 tweets to a list of around 5 or 6 for each case study.
+
+With all things considered, having to eventually reduce the scope of our project was an inevitable decision. It allowed us to do a more in-depth analysis of Elon Musk and Tesla, where there were 50+ events with large percentage variances in closing stock prices between other stock indices and Tesla. We were able to address our difficulty by weighing up the positives of expanding the scope and reducing the analysis depth, compared to reducing the scope and increasing the analysis depth.
+
+In terms of ethics, there was only one key concern we had going into this project. We were concerned that scraping data from someone's Twitter page might be considered an invasion of privacy and could be considered immoral from a data agency and privacy standpoint. We researched scraping public sites like Twitter for tweet data, and the ethics of using someone's quotes and phrases against them. The consensus with a project like this seems to be that scraping public-facing quotes and opinions from people on a site such as Twitter is not a morally or ethically void process, and as long as we don't make judgments about the character of the profile we are scraping, or make any baseless accusations, we are not being immoral or unethical. This is why we carefully designed our research question to avoid making any statements questioning intent. We simply scraped the data to try and see if there was any correlation between the instant of a tweet, its content, and the price of Tesla stocks, not whether it was an intentional elaborate scheme to manipulate the market.
+
+Looking into the future, there are many ways that we can improve our exploration and get more conclusive data. One way involves looking at what we consider to be a substantial drop in the value of Tesla. We can use different statistical models that outline the stock behavior of Tesla across a long time period, and look at cases where the projected graph across a longer period doesn't match with the real data, similar to our SARIMA model event studies but with more data training them. To more rigorously test our software, we could expand this exploration to look at the tweets of other CEOs, and compare the stock prices of their companies to instances of tweets across their timeline. Although not all CEOs tweet as much as Elon does, there still may be instances where they have made remarks that drastically affect the value of their stock, and this could be an interesting way to come to an overall judgment as to the role that Twitter has on the stock market, and how people can begin to predict the value of stocks using Twitter profiles as one of the key factors.
+
