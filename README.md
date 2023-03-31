@@ -1,6 +1,8 @@
 # twitter-vs-stock
 Exploring the correlation between tweets of CEOs and their stock value. The full process can be followed in main.ipynb
 
+Note: Running cells in snscrape working as of submission deadline. Ensure snscrape is updated to cover updates to twitter backend. If snscrape library development stops for any reason (unlikely), the exploration is mostly unaffected, all scraped tweets are saved in raw data folder.
+
 ## Setup
 
 ### Repo requirements
